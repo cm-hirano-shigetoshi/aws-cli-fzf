@@ -40,7 +40,7 @@ pub fn execute_fzf_for_command(help_dir: &str, tool_dir: &str) -> String {
 }
 
 pub fn execute_fzf_for_options(help_dir: &str, tool_dir: &str, command: &str) -> String {
-    let path = format!("{}/commands/{}", help_dir, command.replace(":", "/"));
+    let path = get_command_file_path(help_dir, command);
     if !Path::new(path.as_str()).exists() {
         execute_command(
             format!(
@@ -54,13 +54,17 @@ pub fn execute_fzf_for_options(help_dir: &str, tool_dir: &str, command: &str) ->
         .unwrap_or_else(|_err| String::from(""));
     }
     let fzf_command = format!(
-        "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --reverse --ansi",
-        tool_dir, help_dir, command
+        "bash {}/bash/option_list.sh '{}' | fzf --reverse --ansi",
+        tool_dir, path
     );
     return execute_command(fzf_command.as_str())
         .unwrap_or_else(|_err| String::from(""))
         .trim_end()
         .to_string();
+}
+
+pub fn get_command_file_path(help_dir: &str, command: &str) -> String {
+    return format!("{}/commands/{}", help_dir, command.replace(":", "/"));
 }
 
 pub fn execute_command(command: &str) -> Result<String> {
@@ -86,10 +90,11 @@ pub fn make_new_buffer_from_file(
     command: &str,
     options: &str,
 ) -> String {
+    let path = get_command_file_path(help_dir, command);
     let content = execute_command(
         format!(
-            "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --ansi -f ^",
-            tool_dir, help_dir, command
+            "bash {}/bash/option_list.sh '{}' | fzf --ansi -f ^",
+            tool_dir, path
         )
         .as_str(),
     )

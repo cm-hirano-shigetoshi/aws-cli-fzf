@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cat "$1/${2/:/\/}" | \
+cat "$1" | \
     sed -n '/^SYNOPSIS$/,/^OPTIONS$/p' | \
     grep -v '^SYNOPSIS$' | \
     grep -v '^OPTIONS$' | \
