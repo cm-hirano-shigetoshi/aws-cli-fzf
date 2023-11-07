@@ -21,7 +21,8 @@ fn main() {
     let tool_dir: &str = &args[2];
     let command = execute_fzf_for_command(help_dir, tool_dir);
     let options = execute_fzf_for_options(help_dir, tool_dir, command.as_str());
-    let new_buffer = make_new_buffer_from_file(help_dir, command.as_str(), options.as_str());
+    let new_buffer =
+        make_new_buffer_from_file(tool_dir, help_dir, command.as_str(), options.as_str());
     if new_buffer.len() > 0 {
         let new_cursor = new_buffer.len();
         println!("{} {}", new_cursor, new_buffer);
@@ -76,10 +77,22 @@ pub fn execute_command(command: &str) -> Result<String> {
     }
 }
 
-pub fn make_new_buffer_from_file(help_dir: &str, command: &str, options: &str) -> String {
+pub fn make_new_buffer_from_file(
+    tool_dir: &str,
+    help_dir: &str,
+    command: &str,
+    options: &str,
+) -> String {
     let path = format!("{}/commands/{}", help_dir, command.replace(":", "/"));
-    let lines = read_file(path.as_str());
-    return make_new_buffer(lines, options.split("\n").map(|s| s.to_string()).collect());
+    let content = execute_command(
+        format!(
+            "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --reverse --ansi",
+            tool_dir, help_dir, command
+        )
+        .as_str(),
+    )
+    .unwrap_or_else(|_err| String::from(""));
+    return make_new_buffer_from_str(content.as_str(), options);
 }
 
 pub fn read_file(path: &str) -> Vec<String> {
@@ -93,7 +106,13 @@ pub fn read_file(path: &str) -> Vec<String> {
     return lines;
 }
 
-pub fn make_new_buffer(lines: Vec<String>, options: Vec<String>) -> String {
+pub fn make_new_buffer_from_str(content: &str, options: &str) -> String {
+    let content_vec: Vec<String> = content.split("\n").map(|s| s.to_string()).collect();
+    let options_vec: Vec<String> = options.split("\n").map(|s| s.to_string()).collect();
+    return make_new_buffer(content_vec, options_vec);
+}
+
+pub fn make_new_buffer(content: Vec<String>, options: Vec<String>) -> String {
     return options[0].clone();
 }
 
