@@ -44,7 +44,8 @@ pub fn execute_fzf_for_options(help_dir: &str, tool_dir: &str, command: &str) ->
     if !Path::new(path.as_str()).exists() {
         execute_command(
             format!(
-                "aws {} help | fzf --ansi -f ^ > {}",
+                "mkdir -p $(dirname {}) && aws {} help | fzf --ansi -f ^ > {}",
+                path,
                 command.to_string().replace(":", " "),
                 path
             )
