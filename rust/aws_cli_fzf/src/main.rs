@@ -18,12 +18,14 @@ fn main() {
     let help_dir: &str = &args[1];
     let tool_dir: &str = &args[2];
     let command = execute_fzf_for_command(help_dir, tool_dir);
-    let options = execute_fzf_for_options(help_dir, tool_dir, command.as_str());
-    let new_buffer =
-        make_new_buffer_from_file(tool_dir, help_dir, command.as_str(), options.as_str());
-    if new_buffer.len() > 0 {
-        let new_cursor = new_buffer.len();
-        println!("{} {}", new_cursor, new_buffer);
+    if command.len() > 0 {
+        let options = execute_fzf_for_options(help_dir, tool_dir, command.as_str());
+        let new_buffer =
+            make_new_buffer_from_file(tool_dir, help_dir, command.as_str(), options.as_str());
+        if new_buffer.len() > 0 {
+            let new_cursor = new_buffer.len();
+            println!("{} {}", new_cursor, new_buffer);
+        }
     }
 }
 
