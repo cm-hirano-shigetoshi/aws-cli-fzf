@@ -1,14 +1,13 @@
-use std::io::BufReader;
 use std::io::{Error, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::prelude::*;
-pub fn debug(s: &str) -> std::io::Result<()> {
-    let mut file = File::create("/tmp/aaa")?;
-    file.write_all(s.as_bytes())?;
-    Ok(())
+pub fn debug(s: &str) {
+    //let mut file = File::create("/tmp/aaa").unwrap();
+    let mut file = OpenOptions::new().append(true).open("/tmp/aaa").unwrap();
+    file.write_all(format!("{}\n", s).as_bytes()).unwrap();
 }
 
 fn main() {
@@ -57,7 +56,10 @@ pub fn execute_fzf_for_options(help_dir: &str, tool_dir: &str, command: &str) ->
         "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --reverse --ansi",
         tool_dir, help_dir, command
     );
-    return execute_command(fzf_command.as_str()).unwrap_or_else(|_err| String::from(""));
+    return execute_command(fzf_command.as_str())
+        .unwrap_or_else(|_err| String::from(""))
+        .trim_end()
+        .to_string();
 }
 
 pub fn execute_command(command: &str) -> Result<String> {
@@ -83,37 +85,58 @@ pub fn make_new_buffer_from_file(
     command: &str,
     options: &str,
 ) -> String {
-    let path = format!("{}/commands/{}", help_dir, command.replace(":", "/"));
     let content = execute_command(
         format!(
-            "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --reverse --ansi",
+            "bash {}/bash/option_list.sh '{}/commands' '{}' | fzf --ansi -f ^",
             tool_dir, help_dir, command
         )
         .as_str(),
     )
     .unwrap_or_else(|_err| String::from(""));
-    return make_new_buffer_from_str(content.as_str(), options);
+    return make_new_buffer_from_str(command, content.trim_end(), options);
 }
 
-pub fn read_file(path: &str) -> Vec<String> {
-    let f = File::open(path).expect("file not found");
-    let br = BufReader::new(f);
-    let mut lines: Vec<String> = Vec::new();
-    for l in br.lines() {
-        let line: String = l.expect("fail to read line");
-        lines.push(line);
-    }
-    return lines;
-}
-
-pub fn make_new_buffer_from_str(content: &str, options: &str) -> String {
+pub fn make_new_buffer_from_str(command: &str, content: &str, options: &str) -> String {
     let content_vec: Vec<String> = content.split("\n").map(|s| s.to_string()).collect();
     let options_vec: Vec<String> = options.split("\n").map(|s| s.to_string()).collect();
-    return make_new_buffer(content_vec, options_vec);
+    return make_new_buffer(command, content_vec, options_vec);
 }
 
-pub fn make_new_buffer(content: Vec<String>, options: Vec<String>) -> String {
-    return options[0].clone();
+pub fn make_new_buffer(command: &str, lines: Vec<String>, options: Vec<String>) -> String {
+    return format!(
+        "aws {} {} {}",
+        command.replace(":", " "),
+        get_mondatories(lines),
+        get_options(options)
+    );
+}
+
+pub fn get_mondatories(lines: Vec<String>) -> String {
+    let mut result = String::new();
+    for line in lines {
+        if !line.starts_with("[") {
+            result.push_str(line.as_str());
+            result.push(' ');
+        }
+    }
+    if result.len() > 0 {
+        result.pop();
+    }
+    return result;
+}
+
+pub fn get_options(options: Vec<String>) -> String {
+    let mut result = String::new();
+    for option in options {
+        if option.starts_with("[") {
+            result.push_str(&option[1..option.len() - 1]);
+            result.push(' ');
+        }
+    }
+    if result.len() > 0 {
+        result.pop();
+    }
+    return result;
 }
 
 #[cfg(test)]
@@ -128,9 +151,45 @@ mod tests {
 
     #[test]
     fn test_make_new_buffer() {
-        let lines: Vec<String> = vec!["".to_string()];
-        let options: Vec<String> = vec!["aaa".to_string()];
-        let result = make_new_buffer(lines, options);
-        assert_eq!(result, "aaa");
+        let lines: Vec<String> = vec![
+            "--function-name <value>".to_string(),
+            "<outfile>".to_string(),
+            "[--endpoint-url <value>]".to_string(),
+        ];
+        let options: Vec<String> = vec!["[--endpoint-url <value>]".to_string()];
+        let result = make_new_buffer("lambda:invoke", lines, options);
+        assert_eq!(
+            result,
+            "aws lambda invoke --function-name <value> <outfile> --endpoint-url <value>"
+        );
+    }
+
+    #[test]
+    fn test_get_mondatories() {
+        let lines: Vec<String> = vec![
+            "--function-name <value>".to_string(),
+            "<outfile>".to_string(),
+            "[--endpoint-url <value>]".to_string(),
+        ];
+        let result = get_mondatories(lines);
+        assert_eq!(result, "--function-name <value> <outfile>");
+
+        let lines: Vec<String> = vec![
+            "[--endpoint-url <value>]".to_string(),
+            "[--hogehoge <value>]".to_string(),
+        ];
+        let result = get_mondatories(lines);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_get_options() {
+        let options: Vec<String> = vec!["[--endpoint-url <value>]".to_string()];
+        let result = get_options(options);
+        assert_eq!(result, "--endpoint-url <value>");
+
+        let options: Vec<String> = vec!["--endpoint-url <value>".to_string()];
+        let result = get_options(options);
+        assert_eq!(result, "");
     }
 }
