@@ -1,5 +1,4 @@
 use std::io::{Error, Result};
-use std::path::Path;
 use std::process::{Command, Stdio};
 
 use std::fs::OpenOptions;
@@ -29,9 +28,10 @@ fn main() {
 }
 
 pub fn execute_fzf_for_command(help_dir: &str, tool_dir: &str) -> String {
+    let preview_command = get_preview_command(help_dir, tool_dir);
     let fzf_command = format!(
-        "bash {}/bash/command_list.sh {}/services | fzf --reverse --ansi",
-        tool_dir, help_dir
+        "bash {}/bash/command_list.sh {}/services | fzf --reverse --ansi --preview '{}' --preview-window 'right:65%'",
+        tool_dir, help_dir, preview_command
     );
     return execute_command(fzf_command.as_str())
         .unwrap_or_else(|_err| String::from(""))
@@ -39,20 +39,15 @@ pub fn execute_fzf_for_command(help_dir: &str, tool_dir: &str) -> String {
         .to_string();
 }
 
+pub fn get_preview_command(help_dir: &str, tool_dir: &str) -> String {
+    return format!(
+        "bash {}/bash/preview_command.sh '{}/commands' {{}}",
+        tool_dir, help_dir
+    );
+}
+
 pub fn execute_fzf_for_options(help_dir: &str, tool_dir: &str, command: &str) -> String {
     let path = get_command_file_path(help_dir, command);
-    if !Path::new(path.as_str()).exists() {
-        execute_command(
-            format!(
-                "mkdir -p $(dirname {}) && aws {} help | fzf --ansi -f ^ > {}",
-                path,
-                command.to_string().replace(":", " "),
-                path
-            )
-            .as_str(),
-        )
-        .unwrap_or_else(|_err| String::from(""));
-    }
     let fzf_command = format!(
         "bash {}/bash/option_list.sh '{}' | fzf --reverse --ansi",
         tool_dir, path

@@ -10,7 +10,7 @@ function complete_arguments() {
     )
     if [[ -n "${_CURSOR}" ]] && [[ -n "${_BUFFER}" ]]; then
         BUFFER="${_BUFFER} "
-        CURSOR=${_CURSOR}
+        CURSOR=$((${_CURSOR} + 1))
         zle redisplay
     fi
 }
